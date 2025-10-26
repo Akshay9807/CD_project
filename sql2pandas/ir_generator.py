@@ -27,7 +27,11 @@ class IRGenerator:
     
     def _process_columns(self, columns) -> List[str]:
         """Process column list"""
-        return [col.name for col in columns]
+        column_names = [col.name for col in columns]
+        # Handle SELECT * case
+        if len(column_names) == 1 and column_names[0] == "*":
+            return ["*"]
+        return column_names
     
     def _process_where_clause(self, where_clause: WhereClause) -> Dict[str, Any]:
         """Process WHERE clause into filter conditions"""

@@ -100,6 +100,12 @@ class SQLParser:
     def parse_column_list(self) -> List[Column]:
         columns = []
         
+        # Check for SELECT *
+        if self.current_token() and self.current_token().type == TokenType.ASTERISK:
+            self.consume(TokenType.ASTERISK)
+            columns.append(Column("*"))
+            return columns
+        
         # First column
         token = self.consume(TokenType.IDENTIFIER)
         columns.append(Column(token.value))

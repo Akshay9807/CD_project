@@ -21,7 +21,7 @@ class CodeGenerator:
                 code_lines.append(f"result = result[{filter_code}]")
         
         # Apply column selection
-        if ir["columns"]:
+        if ir["columns"] and ir["columns"] != ["*"]:
             columns_str = str(ir["columns"])
             code_lines.append(f"result = result[{columns_str}]")
         
