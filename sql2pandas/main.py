@@ -9,6 +9,22 @@ from parser import SQLParser
 from ir_generator import IRGenerator
 from code_generator import CodeGenerator
 from executor import PandasExecutor
+from dataclasses import is_dataclass, fields
+
+def ast_to_dict(obj):
+    """Recursively convert dataclass-based AST nodes to plain Python dicts/lists for display."""
+    if is_dataclass(obj):
+        result = {}
+        for f in fields(obj):
+            val = getattr(obj, f.name)
+            result[f.name] = ast_to_dict(val)
+        return {type(obj).__name__: result}
+    if isinstance(obj, list):
+        return [ast_to_dict(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(ast_to_dict(v) for v in obj)
+    # primitives or other objects
+    return obj
 
 def main():
     st.title("SQL2Pandas Compiler")
@@ -65,7 +81,13 @@ def main():
             # Phase 2: Syntax Analysis
             st.subheader("Phase 2: Syntax Analysis (Parse Tree)")
             ast = parser.parse(tokens)
-            st.text(f"Parse tree structure: {type(ast).__name__}")
+            # Show the dataclass-based AST as a nested JSON/dict
+            try:
+                ast_dict = ast_to_dict(ast)
+                st.json(ast_dict, expanded=True)
+            except Exception:
+                # Fallback: show the type name if conversion fails
+                st.text(f"Parse tree structure: {type(ast).__name__}")
             
             # Phase 3: Intermediate Representation
             st.subheader("Phase 3: Intermediate Representation (IR)")

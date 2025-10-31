@@ -16,7 +16,9 @@ class SelectStatement(ASTNode):
 
 @dataclass
 class Column(ASTNode):
+    # name holds the expression (identifier, function call, or '*')
     name: str
+    alias: Optional[str] = None
 
 @dataclass
 class WhereClause(ASTNode):
@@ -31,7 +33,7 @@ class OrderClause(ASTNode):
 class Condition(ASTNode):
     left: str
     operator: str
-    right: Union[str, int, float]
+    right: Union[str, int, float, 'SelectStatement']
     logical_op: Optional[str] = None  # AND, OR
     next_condition: Optional['Condition'] = None
 
@@ -105,61 +107,135 @@ class SQLParser:
             self.consume(TokenType.ASTERISK)
             columns.append(Column("*"))
             return columns
-        
-        # First column
-        token = self.consume(TokenType.IDENTIFIER)
-        columns.append(Column(token.value))
-        
-        # Additional columns
-        while self.current_token() and self.current_token().type == TokenType.COMMA:
-            self.consume(TokenType.COMMA)
-            token = self.consume(TokenType.IDENTIFIER)
-            columns.append(Column(token.value))
+        # Parse one or more comma-separated column expressions
+        while True:
+            col = self.parse_column_expression()
+            columns.append(col)
+            # If comma, consume and continue
+            if self.current_token() and self.current_token().type == TokenType.COMMA:
+                self.consume(TokenType.COMMA)
+                continue
+            break
         
         return columns
+
+    def parse_column_expression(self) -> Column:
+        """Parses a column expression which can be:
+        - identifier
+        - function call like AVG(age)
+        - identifier AS alias
+        """
+        # Function call: IDENTIFIER LPAREN args RPAREN
+        token = self.current_token()
+        if token.type == TokenType.IDENTIFIER and self.peek_token() and self.peek_token().type == TokenType.LPAREN:
+            func_name = self.consume(TokenType.IDENTIFIER).value
+            self.consume(TokenType.LPAREN)
+            # For now, only simple single-identifier args or *
+            args = []
+            while self.current_token() and self.current_token().type != TokenType.RPAREN:
+                if self.current_token().type == TokenType.COMMA:
+                    self.consume(TokenType.COMMA)
+                    continue
+                if self.current_token().type == TokenType.ASTERISK:
+                    args.append(self.consume(TokenType.ASTERISK).value)
+                else:
+                    arg = self.consume(TokenType.IDENTIFIER).value
+                    args.append(arg)
+            self.consume(TokenType.RPAREN)
+            expr = f"{func_name}({', '.join(args)})"
+        else:
+            # Simple identifier
+            expr = self.consume(TokenType.IDENTIFIER).value
+
+        # Optional alias: AS alias or just alias
+        alias = None
+        if self.current_token() and self.current_token().type == TokenType.IDENTIFIER and self.current_token().value.upper() == 'AS':
+            # consume AS then alias
+            self.consume(TokenType.IDENTIFIER)
+            alias = self.consume(TokenType.IDENTIFIER).value
+        elif self.current_token() and self.current_token().type == TokenType.IDENTIFIER:
+            # treat bare identifier after expression as alias (common SQL)
+            # but only if previous token was a function or identifier and next token is comma/FROM
+            # peek next
+            next_t = self.peek_token()
+            if next_t and (next_t.type == TokenType.COMMA or next_t.type == TokenType.FROM or next_t.type == TokenType.RPAREN):
+                alias = self.consume(TokenType.IDENTIFIER).value
+
+        return Column(expr, alias)
     
     def parse_where_clause(self) -> WhereClause:
         self.consume(TokenType.WHERE)
         condition = self.parse_condition()
         return WhereClause(condition)
     
+    def consume_any(self, types: List[TokenType]) -> Token:
+        token = self.current_token()
+        if token.type not in types:
+            raise ParseError(f"Expected one of {types}, got {token.type}")
+        self.current += 1
+        return token
+
     def parse_condition(self) -> Condition:
-        # Left operand
-        left_token = self.consume(TokenType.IDENTIFIER)
-        left = left_token.value
-        
-        # Operator
-        op_token = self.current_token()
-        if op_token.type not in [TokenType.EQUALS, TokenType.NOT_EQUALS, 
-                                TokenType.LESS_THAN, TokenType.GREATER_THAN,
-                                TokenType.LESS_EQUAL, TokenType.GREATER_EQUAL]:
-            raise ParseError(f"Expected comparison operator, got {op_token.type}")
-        
-        operator = op_token.value
-        self.consume()
-        
-        # Right operand
-        right_token = self.current_token()
-        if right_token.type == TokenType.NUMBER:
-            right = float(right_token.value) if '.' in right_token.value else int(right_token.value)
-        elif right_token.type == TokenType.STRING:
-            right = right_token.value.strip('"\'')
-        elif right_token.type == TokenType.IDENTIFIER:
-            right = right_token.value
+        # Parse either a parenthesized condition, a simple comparison,
+        # or a comparison whose right-hand side is a subquery.
+
+        # Parenthesized condition
+        if self.current_token() and self.current_token().type == TokenType.LPAREN:
+            self.consume(TokenType.LPAREN)
+            # If this is a subquery (SELECT ...), let parse_select_statement handle it
+            if self.current_token() and self.current_token().type == TokenType.SELECT:
+                subquery = self.parse_select_statement()
+                # After parsing subquery we expect a closing parenthesis
+                self.consume(TokenType.RPAREN)
+                # Return a special Condition with left=None to indicate a subquery expression
+                # but to stay compatible with existing structure, place the SelectStatement in right
+                # and leave left/operator empty strings
+                condition = Condition(left='', operator='', right=subquery)
+            else:
+                # Regular parenthesized boolean expression
+                condition = self.parse_condition()
+                self.consume(TokenType.RPAREN)
         else:
-            raise ParseError(f"Expected value, got {right_token.type}")
-        
-        self.consume()
-        
-        condition = Condition(left, operator, right)
-        
-        # Check for logical operators (AND, OR)
+            # Parse basic comparison: IDENTIFIER OP VALUE (or subquery on RHS)
+            left_token = self.consume(TokenType.IDENTIFIER)
+            left = left_token.value
+
+            op_token = self.consume_any([TokenType.EQUALS, TokenType.NOT_EQUALS,
+                                        TokenType.LESS_THAN, TokenType.GREATER_THAN,
+                                        TokenType.LESS_EQUAL, TokenType.GREATER_EQUAL])
+            operator = op_token.value
+
+            # If RHS is a parenthesized expression, it can be a subquery or nested expression
+            if self.current_token() and self.current_token().type == TokenType.LPAREN:
+                self.consume(TokenType.LPAREN)
+                if self.current_token() and self.current_token().type == TokenType.SELECT:
+                    # Subquery as RHS
+                    subquery = self.parse_select_statement()
+                    self.consume(TokenType.RPAREN)
+                    right = subquery
+                else:
+                    # Parenthesized expression (treat as nested condition)
+                    nested_cond = self.parse_condition()
+                    self.consume(TokenType.RPAREN)
+                    right = nested_cond
+            else:
+                right_token = self.consume_any([TokenType.STRING, TokenType.NUMBER, TokenType.IDENTIFIER])
+                if right_token.type == TokenType.NUMBER:
+                    right = float(right_token.value) if '.' in right_token.value else int(right_token.value)
+                elif right_token.type == TokenType.STRING:
+                    right = right_token.value.strip('"\'')
+                else:  # IDENTIFIER
+                    right = right_token.value
+
+            condition = Condition(left, operator, right)
+
+        # Handle chained AND/OR operations
         if self.current_token() and self.current_token().type in [TokenType.AND, TokenType.OR]:
             logical_op = self.consume().value
             next_condition = self.parse_condition()
             condition.logical_op = logical_op
             condition.next_condition = next_condition
-        
+
         return condition
     
     def parse_order_clause(self) -> OrderClause:

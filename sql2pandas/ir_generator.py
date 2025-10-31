@@ -45,12 +45,21 @@ class IRGenerator:
         conditions = []
         
         # Current condition
-        current_cond = {
-            "column": condition.left,
-            "operator": self._normalize_operator(condition.operator),
-            "value": condition.right,
-            "value_type": self._get_value_type(condition.right)
-        }
+        # If the right-hand side is a SelectStatement (subquery), preserve it
+        if isinstance(condition.right, SelectStatement):
+            current_cond = {
+                "column": condition.left,
+                "operator": self._normalize_operator(condition.operator),
+                "value": condition.right,  # keep SelectStatement
+                "value_type": "subquery"
+            }
+        else:
+            current_cond = {
+                "column": condition.left,
+                "operator": self._normalize_operator(condition.operator),
+                "value": condition.right,
+                "value_type": self._get_value_type(condition.right)
+            }
         conditions.append(current_cond)
         
         # Handle chained conditions (AND, OR)
