@@ -20,7 +20,8 @@ class IRGenerator:
             "group_by": None,
             "having": None,
             "ordering": None,
-            "limit": None
+            "limit": None,
+            "set_operations": None
         }
         
         if ast.where_clause:
@@ -38,10 +39,13 @@ class IRGenerator:
         if ast.limit_clause:
             ir["limit"] = self._process_limit_clause(ast.limit_clause)
         
+        if ast.set_operations:
+            ir["set_operations"] = self._process_set_operations(ast.set_operations)
+        
         return ir
     
     def _process_columns(self, columns: List[Column]) -> List[Dict[str, Any]]:
-        """Process column list with functions and aliases"""
+        """Process column list with functions, expressions, and aliases"""
         processed_columns = []
         
         for col in columns:
@@ -49,11 +53,33 @@ class IRGenerator:
                 "name": col.name,
                 "alias": col.alias,
                 "function": col.function,
-                "table_alias": col.table_alias
+                "table_alias": col.table_alias,
+                "expression": self._process_expression(col.expression) if col.expression else None
             }
             processed_columns.append(col_info)
         
         return processed_columns
+    
+    def _process_expression(self, expr) -> Dict[str, Any]:
+        """Process expression objects"""
+        if not expr:
+            return None
+        
+        expr_info = {
+            "type": expr.type,
+            "value": expr.value,
+            "arguments": [self._process_expression(arg) for arg in expr.arguments] if expr.arguments else None,
+            "conditions": [self._process_case_condition(cond) for cond in expr.conditions] if expr.conditions else None
+        }
+        
+        return expr_info
+    
+    def _process_case_condition(self, condition) -> Dict[str, Any]:
+        """Process CASE condition"""
+        return {
+            "when": self._process_expression(condition.when_expr),
+            "then": self._process_expression(condition.then_expr)
+        }
     
     def _process_from_clause(self, from_clause: FromClause) -> Dict[str, Any]:
         """Process FROM clause with JOINs"""
@@ -159,6 +185,20 @@ class IRGenerator:
             'IS NOT NULL': 'is_not_null'
         }
         return operator_map.get(operator.upper(), operator.lower())
+    
+    def _process_set_operations(self, set_operations) -> List[Dict[str, Any]]:
+        """Process set operations (UNION, INTERSECT, EXCEPT)"""
+        processed_ops = []
+        
+        for op in set_operations:
+            op_info = {
+                "type": op.operation_type,
+                "all": op.all_flag,
+                "right_query": self.generate(op.right_query) if op.right_query else None
+            }
+            processed_ops.append(op_info)
+        
+        return processed_ops
     
     def _get_value_type(self, value: Any) -> str:
         """Determine the type of a value"""

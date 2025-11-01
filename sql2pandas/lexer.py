@@ -23,6 +23,7 @@ class TokenType(Enum):
     RIGHT = "RIGHT"
     FULL = "FULL"
     OUTER = "OUTER"
+    CROSS = "CROSS"
     ON = "ON"
     
     # Conditional keywords
@@ -52,7 +53,6 @@ class TokenType(Enum):
     # Subquery keywords
     EXISTS = "EXISTS"
     ANY = "ANY"
-    ALL = "ALL"
     
     # Case statement
     CASE = "CASE"
@@ -61,8 +61,24 @@ class TokenType(Enum):
     ELSE = "ELSE"
     END = "END"
     
-    # Union
+    # Mathematical functions
+    ROUND = "ROUND"
+    FLOOR = "FLOOR"
+    CEIL = "CEIL"
+    ABS = "ABS"
+    
+    # String functions
+    UPPER = "UPPER"
+    LOWER = "LOWER"
+    CONCAT = "CONCAT"
+    LENGTH = "LENGTH"
+    SUBSTRING = "SUBSTRING"
+    
+    # Set operations
     UNION = "UNION"
+    INTERSECT = "INTERSECT"
+    EXCEPT = "EXCEPT"
+    ALL = "ALL"
     
     # Insert, Update, Delete (for future expansion)
     INSERT = "INSERT"
@@ -79,6 +95,10 @@ class TokenType(Enum):
     GREATER_THAN = ">"
     LESS_EQUAL = "<="
     GREATER_EQUAL = ">="
+    PLUS = "+"
+    MINUS = "-"
+    MULTIPLY = "*"
+    DIVIDE = "/"
     
     # Literals
     IDENTIFIER = "IDENTIFIER"
@@ -125,6 +145,7 @@ class SQLLexer:
             'RIGHT': TokenType.RIGHT,
             'FULL': TokenType.FULL,
             'OUTER': TokenType.OUTER,
+            'CROSS': TokenType.CROSS,
             'ON': TokenType.ON,
             
             # Conditional keywords
@@ -154,7 +175,6 @@ class SQLLexer:
             # Subquery
             'EXISTS': TokenType.EXISTS,
             'ANY': TokenType.ANY,
-            'ALL': TokenType.ALL,
             
             # Case
             'CASE': TokenType.CASE,
@@ -163,8 +183,24 @@ class SQLLexer:
             'ELSE': TokenType.ELSE,
             'END': TokenType.END,
             
-            # Union
+            # Mathematical functions
+            'ROUND': TokenType.ROUND,
+            'FLOOR': TokenType.FLOOR,
+            'CEIL': TokenType.CEIL,
+            'ABS': TokenType.ABS,
+            
+            # String functions
+            'UPPER': TokenType.UPPER,
+            'LOWER': TokenType.LOWER,
+            'CONCAT': TokenType.CONCAT,
+            'LENGTH': TokenType.LENGTH,
+            'SUBSTRING': TokenType.SUBSTRING,
+            
+            # Set operations
             'UNION': TokenType.UNION,
+            'INTERSECT': TokenType.INTERSECT,
+            'EXCEPT': TokenType.EXCEPT,
+            'ALL': TokenType.ALL,
             
             # DML (for future)
             'INSERT': TokenType.INSERT,
@@ -183,6 +219,9 @@ class SQLLexer:
             '>': TokenType.GREATER_THAN,
             '<=': TokenType.LESS_EQUAL,
             '>=': TokenType.GREATER_EQUAL,
+            '+': TokenType.PLUS,
+            '-': TokenType.MINUS,
+            '/': TokenType.DIVIDE,
         }
         
         self.punctuation = {
@@ -190,7 +229,7 @@ class SQLLexer:
             ';': TokenType.SEMICOLON,
             '(': TokenType.LPAREN,
             ')': TokenType.RPAREN,
-            '*': TokenType.ASTERISK,
+            '*': TokenType.ASTERISK,  # Also serves as MULTIPLY
             '.': TokenType.DOT,
         }
     
