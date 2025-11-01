@@ -10,7 +10,7 @@ from ir_generator import IRGenerator
 from code_generator import CodeGenerator
 from executor import PandasExecutor
 
-def test_query(sql_query, df):
+def test_query(sql_query, datasets):
     """Test a single SQL query through the entire pipeline"""
     print(f"\n{'='*60}")
     print(f"Testing: {sql_query}")
@@ -39,6 +39,14 @@ def test_query(sql_query, df):
         print(f"   Parse tree: {type(ast).__name__}")
         print(f"   Columns: {[col.name for col in ast.columns]}")
         print(f"   Table: {ast.table}")
+        
+        # Check if table exists
+        if ast.table not in datasets:
+            print(f"\n❌ Error: Table '{ast.table}' not found in datasets")
+            print(f"   Available tables: {list(datasets.keys())}")
+            return False
+        
+        df = datasets[ast.table]
         
         # Phase 3: IR Generation
         print("\n3. Intermediate Representation:")
@@ -75,12 +83,30 @@ def main():
     print("SQL2Pandas Compiler Test Suite")
     print("=" * 60)
     
-    # Load test data
+    # Load all test data
     import os
-    csv_path = os.path.join(os.path.dirname(__file__), 'sample_data', 'students.csv')
-    df = pd.read_csv(csv_path)
-    print(f"Loaded test data: {df.shape[0]} rows, {df.shape[1]} columns")
-    print("Columns:", list(df.columns))
+    datasets = {}
+    sample_dir = os.path.join(os.path.dirname(__file__), 'sample_data')
+    
+    if os.path.exists(sample_dir):
+        for file in os.listdir(sample_dir):
+            if file.endswith('.csv'):
+                table_name = file[:-4]  # Remove .csv extension
+                file_path = os.path.join(sample_dir, file)
+                try:
+                    datasets[table_name] = pd.read_csv(file_path)
+                    df = datasets[table_name]
+                    print(f"Loaded {table_name}: {df.shape[0]} rows, {df.shape[1]} columns")
+                    print(f"  Columns: {list(df.columns)}")
+                except Exception as e:
+                    print(f"Error loading {file}: {e}")
+    
+    if not datasets:
+        print("No CSV files found in sample_data directory!")
+        return
+    
+    print(f"\nTotal datasets loaded: {len(datasets)}")
+    print("Available tables:", list(datasets.keys()))
     
     # Test queries
     test_queries = [
@@ -88,14 +114,17 @@ def main():
         "SELECT name FROM students WHERE grade = 'A'",
         "SELECT * FROM students WHERE age >= 21 AND grade != 'C'",
         "SELECT name, city FROM students WHERE city = 'New York' OR city = 'Chicago'",
-        "SELECT name, age, grade FROM students ORDER BY name ASC"
+        "SELECT name, age, grade FROM students ORDER BY name ASC",
+        "SELECT * FROM courses WHERE credits > 3",
+        "SELECT course_name, instructor FROM courses ORDER BY course_name",
+        "SELECT * FROM enrollments WHERE grade = 'A'"
     ]
     
     passed = 0
     total = len(test_queries)
     
     for query in test_queries:
-        if test_query(query, df):
+        if test_query(query, datasets):
             passed += 1
     
     print(f"\n{'='*60}")

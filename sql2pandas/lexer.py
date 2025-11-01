@@ -14,6 +14,63 @@ class TokenType(Enum):
     DESC = "DESC"
     AND = "AND"
     OR = "OR"
+    NOT = "NOT"
+    
+    # JOIN keywords
+    JOIN = "JOIN"
+    INNER = "INNER"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    FULL = "FULL"
+    OUTER = "OUTER"
+    ON = "ON"
+    
+    # Conditional keywords
+    IN = "IN"
+    LIKE = "LIKE"
+    BETWEEN = "BETWEEN"
+    IS = "IS"
+    NULL = "NULL"
+    
+    # Aggregate and functions
+    COUNT = "COUNT"
+    SUM = "SUM"
+    AVG = "AVG"
+    MAX = "MAX"
+    MIN = "MIN"
+    DISTINCT = "DISTINCT"
+    
+    # Grouping and having
+    GROUP = "GROUP"
+    HAVING = "HAVING"
+    
+    # Limit and offset
+    LIMIT = "LIMIT"
+    OFFSET = "OFFSET"
+    TOP = "TOP"
+    
+    # Subquery keywords
+    EXISTS = "EXISTS"
+    ANY = "ANY"
+    ALL = "ALL"
+    
+    # Case statement
+    CASE = "CASE"
+    WHEN = "WHEN"
+    THEN = "THEN"
+    ELSE = "ELSE"
+    END = "END"
+    
+    # Union
+    UNION = "UNION"
+    
+    # Insert, Update, Delete (for future expansion)
+    INSERT = "INSERT"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    INTO = "INTO"
+    VALUES = "VALUES"
+    SET = "SET"
     
     # Operators
     EQUALS = "="
@@ -34,6 +91,7 @@ class TokenType(Enum):
     LPAREN = "("
     RPAREN = ")"
     ASTERISK = "*"
+    DOT = "."
     
     # Special
     WHITESPACE = "WHITESPACE"
@@ -58,6 +116,63 @@ class SQLLexer:
             'DESC': TokenType.DESC,
             'AND': TokenType.AND,
             'OR': TokenType.OR,
+            'NOT': TokenType.NOT,
+            
+            # JOIN keywords
+            'JOIN': TokenType.JOIN,
+            'INNER': TokenType.INNER,
+            'LEFT': TokenType.LEFT,
+            'RIGHT': TokenType.RIGHT,
+            'FULL': TokenType.FULL,
+            'OUTER': TokenType.OUTER,
+            'ON': TokenType.ON,
+            
+            # Conditional keywords
+            'IN': TokenType.IN,
+            'LIKE': TokenType.LIKE,
+            'BETWEEN': TokenType.BETWEEN,
+            'IS': TokenType.IS,
+            'NULL': TokenType.NULL,
+            
+            # Aggregate functions
+            'COUNT': TokenType.COUNT,
+            'SUM': TokenType.SUM,
+            'AVG': TokenType.AVG,
+            'MAX': TokenType.MAX,
+            'MIN': TokenType.MIN,
+            'DISTINCT': TokenType.DISTINCT,
+            
+            # Grouping
+            'GROUP': TokenType.GROUP,
+            'HAVING': TokenType.HAVING,
+            
+            # Limit
+            'LIMIT': TokenType.LIMIT,
+            'OFFSET': TokenType.OFFSET,
+            'TOP': TokenType.TOP,
+            
+            # Subquery
+            'EXISTS': TokenType.EXISTS,
+            'ANY': TokenType.ANY,
+            'ALL': TokenType.ALL,
+            
+            # Case
+            'CASE': TokenType.CASE,
+            'WHEN': TokenType.WHEN,
+            'THEN': TokenType.THEN,
+            'ELSE': TokenType.ELSE,
+            'END': TokenType.END,
+            
+            # Union
+            'UNION': TokenType.UNION,
+            
+            # DML (for future)
+            'INSERT': TokenType.INSERT,
+            'UPDATE': TokenType.UPDATE,
+            'DELETE': TokenType.DELETE,
+            'INTO': TokenType.INTO,
+            'VALUES': TokenType.VALUES,
+            'SET': TokenType.SET,
         }
         
         self.operators = {
@@ -76,6 +191,7 @@ class SQLLexer:
             '(': TokenType.LPAREN,
             ')': TokenType.RPAREN,
             '*': TokenType.ASTERISK,
+            '.': TokenType.DOT,
         }
     
     def tokenize(self, text: str) -> List[Token]:
